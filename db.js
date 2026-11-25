@@ -1277,18 +1277,18 @@ window.executeAtomicBatch = (puts, deletes, preserveTimestamps = false) => {
 // ==========================================
 // Checks if the phone is running out of space to prevent silent data loss
 if (navigator.storage && navigator.storage.estimate) {
-    setInterval(async () => {
+    const checkStorageQuota = async () => {
         if (document.hidden) return;
         try {
             const estimate = await navigator.storage.estimate();
             const usagePercent = estimate.quota > 0 ? (estimate.usage / estimate.quota) * 100 : 0;
-            
-            // If storage is over 90% full, trigger a critical warning
             if (usagePercent > 90 && window.Utils && window.Utils.showToast) {
                 window.Utils.showToast('⚠️ DEVICE STORAGE FULL. Backup data immediately to prevent loss.', 'error');
             }
         } catch (e) {
             console.warn('Storage estimation not supported on this device.');
         }
-    }, 60000); // Runs a silent check every 60 seconds
+    };
+    setTimeout(checkStorageQuota, 10000);
+    setInterval(checkStorageQuota, 900000);
 }

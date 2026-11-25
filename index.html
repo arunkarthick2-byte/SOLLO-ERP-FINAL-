@@ -59,23 +59,10 @@
             return true; // Prevents the raw ugly red error from bubbling up to the user's browser
         };
     </script> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
-    <!-- 🚨 SOLLO FIX: Injected Chart.js Library -->
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
     <link rel="stylesheet" href="style.css">
-    <!-- 🚨 Controls the color of the mobile status bar -->
-
-    <!-- 🚨 SOLLO FIX: SMART BANNER RELOCATOR (Removed to prevent battery drain) -->
-
-    
-    <!-- 🚀 ENTERPRISE UPGRADE: FAST VECTOR PDF ENGINE -->
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/html-to-pdfmake/browser.js"></script>
 
 </head>
 
@@ -3403,9 +3390,15 @@ Data & Security</strong>
     
         <!-- 🚀 BALANCE SHEET DRILL-DOWN MENU -->
     <div id="sheet-bs-breakdown" class="bottom-sheet" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 12px; display: flex; flex-direction: column; padding: 0; z-index: 3000; box-shadow: 0 12px 40px rgba(0,0,0,0.3); background: var(--md-surface, #ffffff); overflow: hidden;">
-        <div style="background: var(--md-surface, #ffffff); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 14px 16px; border-bottom: 1px solid var(--md-outline-variant, #e2e8f0); display: flex; justify-content: space-between; align-items: center;">
-            <strong id="bs-breakdown-title" style="font-size: 16px; font-weight: 600; color: var(--md-on-surface);">Details</strong>
-            <span class="material-symbols-outlined tap-target" style="color: var(--md-outline, #94a3b8); font-size: 24px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-bs-breakdown')">close</span>
+        <div style="background: var(--md-surface, #ffffff); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 14px 16px 0 16px; border-bottom: 1px solid var(--md-outline-variant, #e2e8f0);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <strong id="bs-breakdown-title" style="font-size: 16px; font-weight: 700; color: var(--md-on-surface);">Details</strong>
+                <span class="material-symbols-outlined tap-target" style="color: var(--md-outline, #94a3b8); font-size: 24px; cursor: pointer;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-bs-breakdown')">close</span>
+            </div>
+            <div class="search-container" style="position: relative; margin-bottom: 10px;">
+                <span class="material-symbols-outlined" style="position: absolute; left: 12px; top: 12px; color: var(--md-outline);">search</span>
+                <input type="text" id="bs-breakdown-search" placeholder="Search party or item..." autocomplete="off" oninput="if(window._filterBsBreakdown) window._filterBsBreakdown(this.value)" style="width: 100%; padding: 12px; border: none; font-size: 15px; background: transparent; outline: none;">
+            </div>
         </div>
         <div style="padding: 0; flex: 1 1 auto; overflow-y: auto; background: var(--md-surface);">
             <div id="bs-breakdown-list" style="display: flex; flex-direction: column; gap: 0;"></div>
@@ -4809,53 +4802,61 @@ Data & Security</strong>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Advanced Reports</span>
             <span id="btn-export-adv-report" class="material-symbols-outlined tap-target" onclick="if(window.UI && window.UI.exportActiveAdvReport) window.UI.exportActiveAdvReport()" style="position: absolute; right: 16px; color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
         </div>
-        <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
-            
-            <div style="display: flex; gap: 8px; margin-bottom: 16px; background: var(--md-surface-variant); padding: 4px; border-radius: 8px;">
+        <div class="activity-content" style="background-color: var(--md-background); padding: 0 16px 16px 16px; overflow-y: auto;">
+            <div class="search-bar ws-trans-search-bar ded-edge-searchbar" style="margin: 0 -16px 12px -16px;">
+                <input type="search" id="adv-report-search" enterkeyhint="search" placeholder="Search Day Book..." autocomplete="off" autocorrect="off" spellcheck="false" oninput="if(window.filterAdvReportView) window.filterAdvReportView(this.value)">
+                <span id="adv-report-period-badge" class="tap-target" onclick="if(window.openAdvReportFilter) window.openAdvReportFilter()" style="font-size:11px;font-weight:700;color:var(--md-primary);background:rgba(0,97,164,0.12);padding:4px 10px;border-radius:999px;white-space:nowrap;flex-shrink:0;cursor:pointer;">Today</span>
+                <span class="material-symbols-outlined tap-target ded-tune-btn" onclick="if(window.openAdvReportFilter) window.openAdvReportFilter()">tune</span>
+            </div>
+            <div style="display: flex; gap: 8px; margin-bottom: 14px; background: var(--md-surface-variant); padding: 4px; border-radius: 8px;">
                 <div id="btn-tab-daybook" class="tap-target" style="flex: 1; text-align: center; padding: 8px; background: var(--md-surface); border-radius: 6px; font-weight: bold; color: var(--md-primary); box-shadow: var(--elevation-1); font-size: 13px;" onclick="UI.switchReportTab('daybook')">Day Book</div>
                 <div id="btn-tab-pnl" class="tap-target" style="flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-weight: bold; color: var(--md-text-muted); font-size: 13px;" onclick="UI.switchReportTab('pnl')">Profit & Loss</div>
                 <div id="btn-tab-bs" class="tap-target" style="flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-weight: bold; color: var(--md-text-muted); font-size: 13px;" onclick="UI.switchReportTab('bs')">Balance Sheet</div>
             </div>
-
             <div id="view-daybook">
-                <div class="m3-card" style="padding: 12px; margin-bottom: 16px;">
-                    <label style="font-weight: 500; font-size: 12px; color: var(--md-primary);">Select Date</label>
-                    <input type="date" id="report-daybook-date" style="border: none; padding: 4px 0; font-size: 16px; font-weight: bold;" onchange="UI.renderDayBook()">
-                </div>
                 <div id="daybook-container"></div>
             </div>
-
             <div id="view-pnl" class="hidden">
-                <div class="m3-card" style="padding: 12px; margin-bottom: 16px; display: flex; gap: 12px;">
-                    <div style="flex: 1;">
-                        <label style="font-weight: 500; font-size: 12px; color: var(--md-primary);">From Date</label>
-                        <input type="date" id="report-pnl-start" style="border: none; padding: 4px 0; width: 100%;" onchange="UI.renderPnL()">
-                    </div>
-                    <div style="flex: 1;">
-                        <label style="font-weight: 500; font-size: 12px; color: var(--md-primary);">To Date</label>
-                        <input type="date" id="report-pnl-end" style="border: none; padding: 4px 0; width: 100%;" onchange="UI.renderPnL()">
-                    </div>
-                </div>
                 <div id="pnl-container"></div>
             </div>
-
             <div id="view-bs" class="hidden">
-                <div class="m3-card" style="padding: 16px; margin-bottom: 16px; background: var(--md-surface); border: 1px solid var(--md-outline-variant);">
-                    <div style="display: flex; gap: 12px;">
-                        <div style="flex: 1;">
-                            <label style="font-weight: 600; font-size: 12px; color: var(--md-text-muted); display: block; margin-bottom: 6px;">From Date</label>
-                            <input type="date" id="report-bs-start" style="width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: var(--md-surface-variant); color: var(--md-on-surface); outline: none;" onchange="if(window.UI && window.UI.renderBalanceSheet) window.UI.renderBalanceSheet()">
-                        </div>
-                        <div style="flex: 1;">
-                            <label style="font-weight: 600; font-size: 12px; color: var(--md-text-muted); display: block; margin-bottom: 6px;">To Date</label>
-                            <input type="date" id="report-bs-end" style="width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: var(--md-surface-variant); color: var(--md-on-surface); outline: none;" onchange="if(window.UI && window.UI.renderBalanceSheet) window.UI.renderBalanceSheet()">
-                        </div>
-                    </div>
-                </div>
-                <!-- ON-SCREEN RENDER CONTAINER -->
                 <div id="bs-container"></div>
             </div>
-            
+        </div>
+    </div>
+    <div id="sheet-adv-report-filter" class="bottom-sheet centered-modal" style="display: flex; flex-direction: column; padding: 0;">
+        <div style="padding: 20px 24px 14px 24px; border-bottom: 1px solid var(--md-outline-variant); flex-shrink: 0; display: flex; justify-content: space-between; align-items: center;">
+            <span id="adv-filter-title" style="font-size: 17px; font-weight: 800; color: var(--md-on-surface);">Filter Period</span>
+            <span class="material-symbols-outlined tap-target" style="color: var(--md-text-muted); cursor: pointer;" onclick="if(window.UI) UI.closeBottomSheet('sheet-adv-report-filter')">close</span>
+        </div>
+        <div style="padding: 18px 24px 24px 24px; flex: 1; overflow-y: auto;">
+            <div id="adv-filter-daybook-wrap">
+                <span class="erp-section-label">Quick Date</span>
+                <div class="erp-segmented-track" style="margin-bottom: 16px;">
+                    <div class="erp-segment-btn tap-target" onclick="window.setAdvQuickDate('today')">Today</div>
+                    <div class="erp-segment-btn tap-target" onclick="window.setAdvQuickDate('yesterday')">Yesterday</div>
+                </div>
+                <label class="erp-section-label">Select Date</label>
+                <input type="date" id="report-daybook-date" class="erp-date-input" onchange="if(window.applyAdvReportFilter) window.applyAdvReportFilter(false)">
+            </div>
+            <div id="adv-filter-range-wrap" class="hidden">
+                <span class="erp-section-label">Timeframe</span>
+                <div class="erp-segmented-track" style="margin-bottom: 16px;">
+                    <div class="erp-segment-btn tap-target" onclick="window.setAdvQuickDate('month')">This Month</div>
+                    <div class="erp-segment-btn tap-target" onclick="window.setAdvQuickDate('last_month')">Last Month</div>
+                    <div class="erp-segment-btn tap-target" onclick="window.setAdvQuickDate('fy')">Fiscal Year</div>
+                    <div class="erp-segment-btn tap-target" onclick="window.setAdvQuickDate('all')">All Time</div>
+                </div>
+                <div id="adv-filter-pnl-dates" style="display: flex; gap: 14px;">
+                    <div style="flex: 1;"><label class="erp-section-label">From Date</label><input type="date" id="report-pnl-start" class="erp-date-input"></div>
+                    <div style="flex: 1;"><label class="erp-section-label">To Date</label><input type="date" id="report-pnl-end" class="erp-date-input"></div>
+                </div>
+                <div id="adv-filter-bs-dates" class="hidden" style="display: flex; gap: 14px;">
+                    <div style="flex: 1;"><label class="erp-section-label">From Date</label><input type="date" id="report-bs-start" class="erp-date-input"></div>
+                    <div style="flex: 1;"><label class="erp-section-label">To Date</label><input type="date" id="report-bs-end" class="erp-date-input"></div>
+                </div>
+            </div>
+            <button type="button" class="btn-primary tap-target" onclick="if(window.applyAdvReportFilter) window.applyAdvReportFilter(true)" style="width: 100%; height: 44px; margin-top: 20px; border-radius: 10px; font-weight: 700;">Apply Filter</button>
         </div>
     </div>
 
@@ -5221,7 +5222,33 @@ Data & Security</strong>
     <script src="cloud.js"></script>
     <script src="app.js"></script>
     <script src="state.js"></script>
-
+    <script>
+        setTimeout(function() {
+            var sp = document.getElementById('splash-screen');
+            if (sp && !sp.classList.contains('hidden')) {
+                sp.style.opacity = '0';
+                sp.style.pointerEvents = 'none';
+                sp.classList.add('fade-out', 'hidden');
+            }
+        }, 6000);
+        window.addEventListener('load', function() {
+            var loadSeq = function(urls, idx) {
+                if (idx >= urls.length) return;
+                var s = document.createElement('script');
+                s.src = urls[idx];
+                s.onload = function() { loadSeq(urls, idx + 1); };
+                s.onerror = function() { loadSeq(urls, idx + 1); };
+                document.body.appendChild(s);
+            };
+            loadSeq([
+                'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js',
+                'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js',
+                'https://cdn.jsdelivr.net/npm/html-to-pdfmake/browser.js',
+                'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+                'https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js'
+            ], 0);
+        });
+    </script>
     <script async defer src="https://apis.google.com/js/api.js" onload="if(window.gapiLoaded) window.gapiLoaded()"></script>
     <script async defer src="https://accounts.google.com/gsi/client" onload="if(window.gisLoaded) window.gisLoaded()"></script>
     
@@ -5282,8 +5309,9 @@ Data & Security</strong>
                 // 🚨 ENTERPRISE UPGRADE: Listen for the Service Worker's Background Sync command!
                 navigator.serviceWorker.addEventListener('message', (event) => {
                     if (event.data && event.data.type === 'TRIGGER_BACKGROUND_BACKUP') {
-                        console.log("☁️ Background Sync Signal Received! Running Auto-Backup...");
-                        if (window.Cloud && typeof window.Cloud.autoBackup === 'function') {
+                        if (window.Cloud && typeof window.Cloud.safeAutoSync === 'function') {
+                            window.Cloud.safeAutoSync();
+                        } else if (window.Cloud && typeof window.Cloud.autoBackup === 'function') {
                             window.Cloud.autoBackup();
                         }
                     }
@@ -5302,6 +5330,8 @@ Data & Security</strong>
             
             const banner = document.getElementById('update-banner');
             if (banner) banner.classList.add('hidden');
+            localStorage.removeItem('sollo_last_tab');
+            localStorage.setItem('sollo_just_updated', '1');
 
             // 🚨 CRITICAL FIX: If sw.js already activated in the background, reload immediately!
             if (newWorker && newWorker.state === 'installed') {
@@ -5696,21 +5726,18 @@ Data & Security</strong>
                 banner.classList.add('show');
             });
             window.addEventListener('online', () => {
-                banner.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px; margin-right: 6px;">sync</span>Back Online - Auto-Syncing to Cloud...';
+                banner.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px; margin-right: 6px;">wifi</span>Back Online';
                 banner.classList.add('online');
-                
-                // ENTERPRISE UPGRADE: Aggressive Offline Auto-Sync
-                setTimeout(() => {
-                    // Trigger the background backup the moment the network stabilizes
+                setTimeout(async () => {
+                    let synced = false;
                     if (window.Cloud && typeof window.Cloud.autoBackup === 'function') {
-                        window.Cloud.autoBackup(); 
+                        try { synced = (await window.Cloud.autoBackup()) === true; } catch (e) {}
                     }
-                    
-                    banner.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px; margin-right: 6px;">cloud_done</span>Cloud Sync Complete';
-                    
-                    // Hide the banner after showing success
+                    banner.innerHTML = synced
+                        ? '<span class="material-symbols-outlined" style="font-size: 16px; margin-right: 6px;">cloud_done</span>Cloud Sync Complete'
+                        : '<span class="material-symbols-outlined" style="font-size: 16px; margin-right: 6px;">wifi</span>Back Online';
                     setTimeout(() => banner.classList.remove('show'), 2500);
-                }, 1500); // 1.5 second delay prevents errors if the network is still connecting
+                }, 1500);
             });
 
             // Check initial state

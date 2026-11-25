@@ -105,11 +105,11 @@ const Cloud = {
         }
         
         const lastBackup = localStorage.getItem('sollo_last_backup');
+        const isDirty = localStorage.getItem('sollo_data_dirty') === '1';
         const now = Date.now();
-        
-        // 🚨 ENTERPRISE FIX: 3600000 ms = 1 Hour! 
-        // Allows the App-Switch trigger to safely secure your active daily work without hitting Google API rate limits!
-        if (!lastBackup || (now - parseInt(lastBackup)) > 3600000) {
+        const elapsed = lastBackup ? (now - parseInt(lastBackup, 10)) : Infinity;
+        if (lastBackup && !isDirty) return false;
+        if (!lastBackup || elapsed > 300000) {
             console.log("Triggering silent background auto-backup...");
             try {
                 // FIX: Call the globally mapped export function directly
@@ -203,7 +203,9 @@ const Cloud = {
 
                 if (uploadRes.ok) {
                     localStorage.setItem('sollo_last_backup', now.toString());
+                    localStorage.removeItem('sollo_data_dirty');
                     if (window.Utils) window.Utils.showToast("☁️ Auto-Backup Completed in Background!");
+                    return true;
                 } else if (uploadRes.status === 404) {
                     localStorage.removeItem(`sollo_drive_file_id_${activeFirmId}`);
                 } else if (uploadRes.status === 401) {

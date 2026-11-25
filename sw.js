@@ -1,7 +1,7 @@
 // ==========================================
 // SOLLO ERP - SMART OFFLINE ENGINE (v6.5 Auto-Fresh)
 // ==========================================
-const CACHE_NAME = 'sollo-erp-v7-3';
+const CACHE_NAME = 'sollo-erp-v7-4';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -33,7 +33,6 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
-    self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             return Promise.all(ASSETS_TO_CACHE.map(url => {

@@ -5887,6 +5887,8 @@ body.dark-mode #app-shell div.screen-section .search-bar {
 }
 #dashboard-chart {
     display: block;
+    width: 100% !important;
+    height: 100% !important;
     max-width: 100%;
 }
 .dash-fulfillment-header {

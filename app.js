@@ -477,22 +477,16 @@ const app = {
                 if (importBtn) importBtn.style.display = 'flex';
             }
             
-            // ENTERPRISE FIX: Order of Operations is Critical!
-            // The Splash Screen MUST hide, and Filters MUST apply BEFORE the Dashboard renders!
             if (window.UI) {
-                if (typeof window.UI.hideSplash === 'function') window.UI.hideSplash();
-                
-                window.UI.applyFilters('sales');
-                window.UI.applyFilters('purchases');
-                window.UI.applyFilters('masters');
-                window.UI.applyFilters('expenses');
-                window.UI.applyFilters('cashbook');
-                window.UI.applyFilters('timeline');
-                
-                // Allow a microscopic 50ms delay for the DOM to register the filters before drawing the math!
                 if (typeof window.UI.renderDashboard === 'function') {
-                    setTimeout(() => window.UI.renderDashboard(), 50);
+                    try { window.UI.renderDashboard(); } catch (e) {}
                 }
+                if (typeof window.UI.hideSplash === 'function') window.UI.hideSplash();
+                setTimeout(() => {
+                    ['sales', 'purchases', 'masters', 'expenses', 'cashbook', 'timeline'].forEach(k => {
+                        try { window.UI.applyFilters(k); } catch (e) {}
+                    });
+                }, 120);
             }
             
             // 🚨 BATTERY OPTIMIZATION: Delay the heavy database scan so the app has time to fully boot and stabilize first!
@@ -550,6 +544,12 @@ const app = {
             if (action && window.history.replaceState) {
                 window.history.replaceState({}, document.title, window.location.pathname);
             } else if (!action) {
+                if (localStorage.getItem('sollo_just_updated') === '1') {
+                    localStorage.removeItem('sollo_just_updated');
+                    setTimeout(() => {
+                        if (window.Utils) window.Utils.showToast('✅ App updated to latest version');
+                    }, 600);
+                }
                 try {
                     const savedRaw = localStorage.getItem('sollo_last_tab');
                     if (savedRaw) {
@@ -1466,11 +1466,11 @@ const app = {
         }
         
         // Trigger silent background backup if active (Skip if this is just a passive cross-tab sync to prevent API flooding)
-        if (!isPassiveSync && typeof Cloud !== 'undefined' && Cloud.autoBackup) {
-            // ENTERPRISE FIX: Only run background backup if Google Drive is ALREADY authenticated!
-            // This prevents the Google Drive login screen from violently interrupting your workflow after saving.
-            if (typeof gapi !== 'undefined' && gapi.client && gapi.client.getToken() !== null) {
-                Cloud.autoBackup();
+        if (!isPassiveSync) {
+            localStorage.setItem('sollo_data_dirty', '1');
+            if (typeof Cloud !== 'undefined' && typeof gapi !== 'undefined' && gapi.client && gapi.client.getToken() !== null) {
+                if (typeof Cloud.safeAutoSync === 'function') Cloud.safeAutoSync();
+                else if (typeof Cloud.autoBackup === 'function') Cloud.autoBackup();
             }
         }
     },
@@ -2424,13 +2424,13 @@ const app = {
             const formatAmt = (amt) => '\u20B9' + Math.abs(amt).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             
             if (partyType === 'Customer') {
-                if (bal > 0.01) { balText = `Closing Balance:<br><span style="font-size: 16px;">${formatAmt(bal)}</span> <br><span style="display:inline-block; margin-top:6px; margin-bottom:2px; background:#dc2626; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(220,38,38,0.3);">TO RECEIVE</span>`; balColor = 'var(--md-on-surface)'; }
-                else if (bal < -0.01) { balText = `Closing Balance:<br><span style="font-size: 16px;">${formatAmt(bal)}</span> <br><span style="display:inline-block; margin-top:6px; margin-bottom:2px; background:#16a34a; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(22,163,74,0.3);">ADVANCE</span>`; balColor = 'var(--md-on-surface)'; }
-                else { balText = `Closing Balance:<br><span style="font-size: 16px;">${formatAmt(0)}</span> <br><span style="display:inline-block; margin-top:6px; margin-bottom:2px; background:#475569; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(71,85,105,0.3);">SETTLED</span>`; balColor = 'var(--md-text-muted)'; }
+                if (bal > 0.01) { balText = `Closing Balance:<br><span style="font-size: 16px;">${formatAmt(bal)}</span> <br><span style="display:inline-block; margin-top:6px; margin-bottom:2px; background:#dc2626; color:#ffffff !important; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(220,38,38,0.3);">TO RECEIVE</span>`; balColor = 'var(--md-on-surface)'; }
+                else if (bal < -0.01) { balText = `Closing Balance:<br><span style="font-size: 16px;">${formatAmt(bal)}</span> <br><span style="display:inline-block; margin-top:6px; margin-bottom:2px; background:#16a34a; color:#ffffff !important; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(22,163,74,0.3);">ADVANCE</span>`; balColor = 'var(--md-on-surface)'; }
+                else { balText = `Closing Balance:<br><span style="font-size: 16px;">${formatAmt(0)}</span> <br><span style="display:inline-block; margin-top:6px; margin-bottom:2px; background:#475569; color:#ffffff !important; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(71,85,105,0.3);">SETTLED</span>`; balColor = 'var(--md-text-muted)'; }
             } else {
-                if (bal < -0.01) { balText = `Closing Balance:<br><span style="font-size: 16px;">${formatAmt(bal)}</span> <br><span style="display:inline-block; margin-top:6px; margin-bottom:2px; background:#dc2626; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(220,38,38,0.3);">TO PAY</span>`; balColor = 'var(--md-on-surface)'; }
-                else if (bal > 0.01) { balText = `Closing Balance:<br><span style="font-size: 16px;">${formatAmt(bal)}</span> <br><span style="display:inline-block; margin-top:6px; margin-bottom:2px; background:#16a34a; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(22,163,74,0.3);">ADVANCE</span>`; balColor = 'var(--md-on-surface)'; }
-                else { balText = `Closing Balance:<br><span style="font-size: 16px;">${formatAmt(0)}</span> <br><span style="display:inline-block; margin-top:6px; margin-bottom:2px; background:#475569; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(71,85,105,0.3);">SETTLED</span>`; balColor = 'var(--md-text-muted)'; }
+                if (bal < -0.01) { balText = `Closing Balance:<br><span style="font-size: 16px;">${formatAmt(bal)}</span> <br><span style="display:inline-block; margin-top:6px; margin-bottom:2px; background:#dc2626; color:#ffffff !important; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(220,38,38,0.3);">TO PAY</span>`; balColor = 'var(--md-on-surface)'; }
+                else if (bal > 0.01) { balText = `Closing Balance:<br><span style="font-size: 16px;">${formatAmt(bal)}</span> <br><span style="display:inline-block; margin-top:6px; margin-bottom:2px; background:#16a34a; color:#ffffff !important; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(22,163,74,0.3);">ADVANCE</span>`; balColor = 'var(--md-on-surface)'; }
+                else { balText = `Closing Balance:<br><span style="font-size: 16px;">${formatAmt(0)}</span> <br><span style="display:inline-block; margin-top:6px; margin-bottom:2px; background:#475569; color:#ffffff !important; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(71,85,105,0.3);">SETTLED</span>`; balColor = 'var(--md-text-muted)'; }
             }
             
             // 🚀 ENTERPRISE UPGRADE: EXPLICIT TAX-SPLIT ENGINE FOR LEDGER
@@ -7434,7 +7434,9 @@ if (data.id && splitConfirmed) {
                     const badge = mult < 0
                         ? `<span class="ded-pill ded-pill-ret">${isCustomer ? 'CR NOTE' : 'DR NOTE'}</span>`
                         : (isNonGst ? '<span class="ded-pill ded-pill-nongst">NON-GST</span>' : `<span class="ded-pill ded-pill-gst">${isB2B ? 'B2B' : 'B2C'}</span>`);
-                    rows += `<tr>
+                    const safeTaxId = String(s.id || '').replace(/'/g, "\\'");
+                    const taxDocType = String(s.documentType || 'invoice').replace(/'/g, "\\'");
+                    rows += `<tr class="tap-target ded-clickable-row" onclick="if(window.openInvoiceOverview) window.openInvoiceOverview('${isCustomer ? 'sales' : 'purchase'}', '${safeTaxId}', '${taxDocType}')">
                         <td class="ded-date-col">${window.Utils.formatDateDisplay(s.date)}</td>
                         <td class="ded-doc-col"><strong>${primaryNo}</strong>${secondaryLine}</td>
                         <td class="ded-cat-col">${badge}</td>
@@ -9634,7 +9636,7 @@ if (data.id && splitConfirmed) {
                 const safeId = String(b.id).replace(/'/g, "\\'");
                 const rightTop = isPaid ? `${b.days}d` : fmt(b.due);
                 const rightSub = isPaid ? 'Paid' : (isOver ? `Overdue • ${b.days}d` : `${b.paid > 0.01 ? 'Partial' : 'Open'} • ${b.days}d`);
-                return `<div class="cpd-row tap-target" onclick="if(window.app){ window.app.state.currentEditId='${safeId}'; window.app.generatePDF('sales'); }">
+                return `<div class="cpd-row tap-target" onclick="if(window.openInvoiceOverview) window.openInvoiceOverview('sales', '${safeId}')">
                     <div class="cpd-row-main">
                         <div class="cpd-row-top">
                             <strong>${esc(b.billNo)}</strong>
@@ -9665,7 +9667,7 @@ if (data.id && splitConfirmed) {
                     const safeId = String(b.id).replace(/'/g, "\\'");
                     const rightTop = b.isReturn ? `-${fmt(Math.abs(b.amount))}` : (isDue ? fmt(b.balance) : fmt(b.amount));
                     const rightBadge = b.isReturn ? 'Return' : (isDue ? 'Due' : 'Paid');
-                    return `<div class="cpd-row tap-target" onclick="if(window.app){ window.app.state.currentEditId='${safeId}'; window.app.generatePDF('purchase'); }">
+                    return `<div class="cpd-row tap-target" onclick="if(window.openInvoiceOverview) window.openInvoiceOverview('purchase', '${safeId}')">
                         <div class="cpd-row-main">
                             <div class="cpd-row-top">
                                 <strong>${esc(b.billNo)}</strong>
@@ -9714,7 +9716,7 @@ if (data.id && splitConfirmed) {
                 const pBg = isLoss ? 'rgba(186,26,26,0.12)' : (b.marginPct < 5 ? 'rgba(217,119,6,0.12)' : 'rgba(22,163,74,0.12)');
                 const dDisp = (window.Utils && window.Utils.formatDateDisplay) ? window.Utils.formatDateDisplay(b.date) : b.date;
                 const safeId = String(b.id).replace(/'/g, "\\'");
-                return `<div class="cpd-row tap-target" onclick="if(window.app){ window.app.state.currentEditId='${safeId}'; window.app.generatePDF('sales'); }">
+                return `<div class="cpd-row tap-target" onclick="if(window.openInvoiceOverview) window.openInvoiceOverview('sales', '${safeId}')">
                     <div class="cpd-row-main">
                         <div class="cpd-row-top">
                             <strong>${esc(b.billNo)}</strong>
@@ -10265,8 +10267,10 @@ if (data.id && splitConfirmed) {
                     const stLower = rawStatus.toLowerCase();
                     const stClass = mult < 0 ? 'uni-pill-ret' : (stLower === 'paid' || stLower === 'settled' ? 'uni-pill-paid' : (stLower === 'partial' ? 'uni-pill-partial' : 'uni-pill-unpaid'));
                     const stColor = mult < 0 ? 'var(--md-error)' : (stLower === 'paid' || stLower === 'settled' ? 'var(--md-success)' : (stLower === 'partial' ? '#b45309' : 'var(--md-text-muted)'));
+                    const safeRegId = String(s.id || '').replace(/'/g, "\\'");
+                    const regDocType = String(s.documentType || 'invoice').replace(/'/g, "\\'");
                     tableRowsHTML += `
-                    <tr>
+                    <tr class="tap-target" style="cursor:pointer;" onclick="if(window.openInvoiceOverview) window.openInvoiceOverview('${isSale ? 'sales' : 'purchase'}', '${safeRegId}', '${regDocType}')">
                         <td class="uni-date-col">${window.Utils.formatDateDisplay(s.date)}</td>
                         <td class="uni-doc-col"><strong>${primaryNo}</strong> ${typePill}${secondaryLine}</td>
                         <td class="uni-party-col"><strong>${partyName}</strong>${gstLine}</td>
@@ -10301,7 +10305,7 @@ if (data.id && splitConfirmed) {
                     const pName = s.customerName;
                     const mult = s.documentType === 'return' ? -1 : 1;
                     const grand = Math.abs(parseFloat(s.grandTotal) || 0) * mult;
-                    if (!pMap[pId]) pMap[pId] = { name: pName, count: 0, total: 0 };
+                    if (!pMap[pId]) pMap[pId] = { id: pId, name: pName, count: 0, total: 0 };
                     pMap[pId].total += grand;
                     globalVol += grand;
                     if (mult > 0) pMap[pId].count += 1;
@@ -10309,8 +10313,10 @@ if (data.id && splitConfirmed) {
                 const pArr = Object.values(pMap).filter(p => p.total > 0).sort((a, b) => b.total - a.total);
                 pArr.forEach((c, idx) => {
                     const pct = globalVol > 0 ? ((c.total / globalVol) * 100).toFixed(1) : 0;
+                    const safeCsId = String(c.id || '').replace(/'/g, "\\'");
+                    const safeCsName = String(c.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                     tableRowsHTML += `
-                    <tr>
+                    <tr class="tap-target" style="cursor:pointer;" onclick="if(window.app) window.app.openPartyLedger('${safeCsId}', 'customer', '${safeCsName}')">
                         <td style="text-align:center;"><strong>#${idx + 1}</strong></td>
                         <td><strong>${c.name}</strong></td>
                         <td style="text-align:center;">${c.count}</td>
@@ -11114,7 +11120,7 @@ if (data.id && splitConfirmed) {
                 
                 allDocs.forEach(doc => {
                     const pId = isRec ? doc.customerId : doc.supplierId;
-                    if(!partyAging[pId]) partyAging[pId] = { name: isRec ? doc.customerName : doc.supplierName, b30: 0, b60: 0, b90: 0, total: 0 };
+                    if(!partyAging[pId]) partyAging[pId] = { id: pId, name: isRec ? doc.customerName : doc.supplierName, b30: 0, b60: 0, b90: 0, total: 0 };
                     
                     const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean).map(String))];
                     const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${pId}_${ref}`] || 0), 0);
@@ -11142,7 +11148,9 @@ if (data.id && splitConfirmed) {
                 
                 paArr.forEach(p => {
                     tb30+=p.b30; tb60+=p.b60; tb90+=p.b90; tAll+=p.total;
-                    tableRowsHTML += `<tr>
+                    const safePaId = String(p.id || '').replace(/'/g, "\\'");
+                    const safePaName = String(p.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    tableRowsHTML += `<tr class="tap-target" style="cursor:pointer;" onclick="if(window.app) window.app.openPartyLedger('${safePaId}', '${isRec ? 'customer' : 'supplier'}', '${safePaName}')">
                         <td><strong>${p.name}</strong></td>
                         <td class="number-col" style="color:var(--md-success);">${p.b30 > 0 ? formatMoney(p.b30) : '-'}</td>
                         <td class="number-col" style="color:#d97706;">${p.b60 > 0 ? formatMoney(p.b60) : '-'}</td>
@@ -11179,7 +11187,7 @@ if (data.id && splitConfirmed) {
                     const mult = p.documentType === 'return' ? -1 : 1;
                     (p.items || []).forEach(row => {
                         const id = row.itemId || row.name;
-                        if(!itemMap[id]) itemMap[id] = { name: row.name, qty: 0, val: 0, uom: row.uom || 'Unit' };
+                        if(!itemMap[id]) itemMap[id] = { id: row.itemId || id, name: row.name, qty: 0, val: 0, uom: row.uom || 'Unit' };
                         
                         const rawSub = Math.abs(parseFloat(p.subtotal) || 0);
                         let discAmt = p.discountType === '%' ? (rawSub * ((parseFloat(p.discount) || 0) / 100)) : Math.abs(parseFloat(p.discount) || 0);
@@ -11199,8 +11207,10 @@ if (data.id && splitConfirmed) {
                 
                 iArr.forEach((c, idx) => {
                     const avgPrice = c.qty > 0 ? (c.val / c.qty) : 0;
+                    const safeItemId = String(c.id || '').replace(/'/g, "\\'");
+                    const safeItemName = String(c.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                     tableRowsHTML += `
-                    <tr>
+                    <tr class="tap-target" style="cursor:pointer;" onclick="if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${safeItemId}', '${safeItemName}')">
                         <td style="text-align:center;"><strong>#${idx+1}</strong></td>
                         <td><strong>${c.name}</strong></td>
                         <td style="text-align:center;">${c.qty.toFixed(2)} <span style="font-size:10px; color:var(--md-text-muted);">${c.uom}</span></td>
@@ -11294,8 +11304,10 @@ if (data.id && splitConfirmed) {
                     const refNo = (p.orderNo || '').trim();
                     const docLabel = billNo || refNo || String(p.id).substring(0,6).toUpperCase();
                     const refSub = (billNo && refNo && billNo !== refNo) ? `<br><span class="uni-sub-ref" style="color:var(--md-text-muted); font-size:10px;">PO: ${refNo}</span>` : '';
+                    const safeGstrId = String(p.id || '').replace(/'/g, "\\'");
+                    const gstrDocType = String(p.documentType || 'invoice').replace(/'/g, "\\'");
                     tableRowsHTML += `
-                    <tr>
+                    <tr class="tap-target" style="cursor:pointer;" onclick="if(window.openInvoiceOverview) window.openInvoiceOverview('purchase', '${safeGstrId}', '${gstrDocType}')">
                         <td class="uni-date-col">${window.Utils.formatDateDisplay(p.date)}</td>
                         <td class="uni-doc-col"><strong>${docLabel}</strong> ${mult < 0 ? `<span class="uni-pill uni-pill-ret" style="color:var(--md-error); font-size:9px; font-weight:800;">DR NOTE</span>` : ''}${refSub}</td>
                         <td>${p.supplierName} <br><span style="font-size:10px; color:var(--md-text-muted); font-family: monospace;">${p.supplierGst || 'UNREGISTERED'}</span></td>
@@ -12175,13 +12187,12 @@ setInterval(() => {
     try {
         const zombies = document.querySelectorAll('#split-overlay, #manual-restore-overlay, #in-app-pdf-viewer, #split-tender-modal');
         zombies.forEach(el => {
-            // If the element is completely hidden or invisible, it's a memory leak. Destroy it permanently.
             if (el.style.display === 'none' || el.style.opacity === '0' || el.classList.contains('closing')) {
                 el.remove();
             }
         });
     } catch(e) { /* Silent background catch */ }
-}, 60000);
+}, 300000);
 
 // ==========================================
 // 🚨 ENTERPRISE UPGRADE: BACKGROUND BATTERY HIBERNATION
@@ -12190,24 +12201,36 @@ setInterval(() => {
 // 🚨 ENTERPRISE SECURITY: INACTIVITY PRIVACY LOCK (FIXED)
 // ==========================================
 let inactivityTimer;
+let lastActivityAt = Date.now();
 const IDLE_TIMEOUT = 5 * 60 * 1000;
 const triggerPrivacyLock = () => {
+    if (!localStorage.getItem('sollo_app_pin')) return;
     const lockScreen = document.getElementById('app-lock-screen');
-    if (lockScreen && localStorage.getItem('sollo_app_pin') && lockScreen.style.display === 'none') {
+    if (lockScreen && lockScreen.style.display === 'none') {
         lockScreen.style.opacity = '1';
         lockScreen.style.display = 'flex';
         if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(50);
     }
 };
 const resetInactivityTimer = () => {
+    if (!localStorage.getItem('sollo_app_pin')) return;
+    const now = Date.now();
+    if (now - lastActivityAt < 5000 && inactivityTimer) return;
+    lastActivityAt = now;
     clearTimeout(inactivityTimer);
     const lockScreen = document.getElementById('app-lock-screen');
     if (lockScreen && lockScreen.style.display === 'none') {
         inactivityTimer = setTimeout(triggerPrivacyLock, IDLE_TIMEOUT);
     }
 };
-['touchstart', 'click', 'scroll', 'keypress'].forEach(evt => {
+['touchstart', 'click', 'keypress'].forEach(evt => {
     document.addEventListener(evt, resetInactivityTimer, { passive: true });
+});
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && localStorage.getItem('sollo_app_pin')) {
+        if (Date.now() - lastActivityAt >= IDLE_TIMEOUT) triggerPrivacyLock();
+        else resetInactivityTimer();
+    }
 });
 resetInactivityTimer();
 window.addEventListener('appinstalled', () => {
@@ -12625,91 +12648,115 @@ window.openBalanceSheetPreview = function() {
             ]
         };
 
-        // --- 3. RENDER THE HTML "PAPER" PREVIEW ON SCREEN ---
-        const mainContent = document.getElementById('overview-main-content');
-        if (mainContent) {
-            
-            // Reusable Table Styles
-            const thStyle = `padding: 8px 12px; background: #0061a4; color: #ffffff; font-size: 11px; font-weight: bold; text-align: left;`;
-            const thStyleRight = `padding: 8px 12px; background: #0061a4; color: #ffffff; font-size: 11px; font-weight: bold; text-align: right;`;
-            const groupStyle = `padding: 8px 12px; background: #f8fafc; color: #0f172a; font-size: 11px; font-weight: bold; border-bottom: 1px solid #e2e8f0;`;
-            const tdStyle = `padding: 8px 12px; color: #334155; font-size: 11px; border-bottom: 1px solid #e2e8f0;`;
-            const tdStyleRight = `padding: 8px 12px; color: #334155; font-size: 11px; border-bottom: 1px solid #e2e8f0; text-align: right;`;
-            const totalStyle = `padding: 10px 12px; color: #0061a4; font-size: 12px; font-weight: bold; border-bottom: 2px solid #0061a4; border-top: 2px solid #0061a4;`;
-            const totalStyleRight = `padding: 10px 12px; color: #0061a4; font-size: 12px; font-weight: bold; border-bottom: 2px solid #0061a4; border-top: 2px solid #0061a4; text-align: right;`;
-
-            mainContent.innerHTML = `
-                <div style="background: var(--md-background); padding: 16px; min-height: 80vh;">
-                    <!-- THE A4 PAPER -->
-                    <div style="background: #ffffff; margin: 0 auto; max-width: 800px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 4px; font-family: sans-serif;">
-                        
-                        <!-- Header -->
-                        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #0061a4; padding-bottom: 16px; margin-bottom: 16px;">
-                            <div>
-                                <h2 style="margin: 0; color: #1e293b; font-size: 18px; font-weight: 800;">${businessName}</h2>
-                                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">As of: ${displayDate}</div>
-                            </div>
-                            <div style="text-align: right;">
-                                <h3 style="margin: 0; color: #0061a4; font-size: 14px; font-weight: 800;">BALANCE SHEET</h3>
-                                <div style="font-size: 10px; color: #64748b; letter-spacing: 1px; margin-top: 2px;">STATEMENT</div>
-                            </div>
-                        </div>
-
-                        <!-- Liabilities Table -->
-                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
-                            <tr><td style="${thStyle}">PARTICULARS (LIABILITIES)</td><td style="${thStyleRight}">AMOUNT (₹)</td></tr>
-                            <tr><td colspan="2" style="${groupStyle}">CAPITAL ACCOUNT</td></tr>
-                            <tr><td style="${tdStyle}">Retained Earnings & P&L</td><td style="${tdStyleRight}">${fmt(retainedEarnings)}</td></tr>
-                            
-                            <tr><td colspan="2" style="${groupStyle}">CURRENT LIABILITIES</td></tr>
-                            <tr><td style="${tdStyle}">Sundry Creditors</td><td style="${tdStyleRight}">${fmt(sundryCreditors)}</td></tr>
-                            <tr><td style="${tdStyle}">Customer Advances</td><td style="${tdStyleRight}">${fmt(customerAdvances)}</td></tr>
-                            <tr><td style="${tdStyle}">Duties & Taxes Payable</td><td style="${tdStyleRight}">${fmt(netTaxLiability)}</td></tr>
-                            
-                            <tr><td style="${totalStyle}">TOTAL LIABILITIES</td><td style="${totalStyleRight}">${fmt(currentLiabilities + retainedEarnings)}</td></tr>
-                        </table>
-
-                        <!-- Assets Table -->
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <tr><td style="${thStyle}">PARTICULARS (ASSETS)</td><td style="${thStyleRight}">AMOUNT (₹)</td></tr>
-                            <tr><td colspan="2" style="${groupStyle}">CURRENT ASSETS</td></tr>
-                            <tr><td style="${tdStyle}">Closing Stock</td><td style="${tdStyleRight}">${fmt(closingStockValue)}</td></tr>
-                            <tr><td style="${tdStyle}">Sundry Debtors</td><td style="${tdStyleRight}">${fmt(sundryDebtors)}</td></tr>
-                            <tr><td style="${tdStyle}">Supplier Advances</td><td style="${tdStyleRight}">${fmt(supplierAdvances)}</td></tr>
-                            <tr><td style="${tdStyle}">Tax Receivable (ITC)</td><td style="${tdStyleRight}">${fmt(netTaxReceivable)}</td></tr>
-                            
-                            <tr><td colspan="2" style="${groupStyle}">BANK & CASH ACCOUNTS</td></tr>
-                            <tr><td style="${tdStyle}">Bank Accounts</td><td style="${tdStyleRight}">${fmt(bankAccounts)}</td></tr>
-                            <tr><td style="${tdStyle}">Cash-in-Hand</td><td style="${tdStyleRight}">${fmt(cashInHand)}</td></tr>
-                            
-                            <tr><td style="${totalStyle}">TOTAL ASSETS</td><td style="${totalStyleRight}">${fmt(currentAssets)}</td></tr>
-                        </table>
-                    </div>
-                </div>
-            `;
-            
-            // Setup the navigation & action buttons
-            const titleEl = document.getElementById('overview-invoice-no');
-            if (titleEl) titleEl.innerText = "Document Preview";
-            
-            const actionsEl = document.getElementById('overview-top-actions');
-            if (actionsEl) actionsEl.innerHTML = ``;
-            
-            const bottomBar = document.getElementById('overview-bottom-bar');
-            if (bottomBar) {
-                bottomBar.innerHTML = `
-                    <button class="btn-primary" onclick="
-                        if(!pdfMake.fonts) { pdfMake.fonts = { Roboto: { normal: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Regular.ttf', bold: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Medium.ttf' } }; }
-                        if(window.Utils) window.Utils.showToast('Downloading PDF...');
-                        pdfMake.createPdf(window.app.currentBSDocDefinition).download('Balance_Sheet_${asOfDate}.pdf');
-                    " style="flex: 1; height: 54px; border-radius: 27px; background: #0061a4; font-size: 16px; font-weight: bold; box-shadow: 0 4px 12px rgba(0, 97, 164, 0.3); display: flex; align-items: center; justify-content: center; gap: 8px;">
-                        <span class="material-symbols-outlined">download</span> Download PDF
-                    </button>
-                `;
-            }
-            
-            if (window.UI) window.UI.openActivity('activity-invoice-overview');
+        if (typeof pdfMake === 'undefined') {
+            if (window.Utils) window.Utils.showToast("⏳ Loading PDF Engine...");
+            return;
         }
+        const safeFilename = `Balance_Sheet_${asOfDate}.pdf`;
+        document.querySelectorAll('#in-app-pdf-viewer').forEach(el => el.remove());
+        if (window.currentActivePDF) {
+            try { window.currentActivePDF.destroy(); } catch (e) {}
+            window.currentActivePDF = null;
+        }
+        const viewer = document.createElement('div');
+        viewer.id = 'in-app-pdf-viewer';
+        viewer.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:var(--md-background); z-index:999999; display:flex; flex-direction:column;';
+        viewer.innerHTML = `
+            <div style="background:var(--md-surface); color:var(--md-on-surface); padding:16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--md-outline-variant); flex-shrink:0;">
+                <div>
+                    <div style="font-weight:bold; font-size:18px; color:var(--md-on-surface);">Document Preview</div>
+                    <div style="font-size:12px; color:var(--md-success); font-weight:700; margin-top:2px;" id="pdf-status-text">Rendering Preview...</div>
+                </div>
+                <div id="pdf-header-actions" style="display:flex; gap:20px; align-items:center; color:var(--md-text-muted);">
+                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none; cursor:pointer;" id="preview-action-print">print</span>
+                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none; cursor:pointer;" id="preview-action-download">download</span>
+                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none; cursor:pointer;" id="preview-action-share">share</span>
+                    <span id="btn-close-pdf-loaded" class="material-symbols-outlined tap-target" style="font-size:28px; color:var(--md-error); cursor:pointer;">close</span>
+                </div>
+            </div>
+            <div id="pdf-preview-content" style="flex:1; overflow:auto; padding:16px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; touch-action: pan-x pan-y pinch-zoom;">
+                <div style="text-align:center; margin-top:50px;">
+                    <span class="material-symbols-outlined" style="font-size:32px; color:var(--md-primary); animation: sollo-spin 1s linear infinite;">autorenew</span>
+                    <div style="margin-top:8px; font-weight:600; color:var(--md-text-muted);">Loading Preview...</div>
+                </div>
+                <style>@keyframes sollo-spin { 100% { transform: rotate(360deg); } }</style>
+            </div>`;
+        document.body.appendChild(viewer);
+        document.getElementById('btn-close-pdf-loaded').onclick = () => {
+            if (window.currentActivePDF) {
+                try { window.currentActivePDF.destroy(); } catch (e) {}
+                window.currentActivePDF = null;
+            }
+            viewer.remove();
+        };
+        const pdfDocGenerator = pdfMake.createPdf(window.app.currentBSDocDefinition);
+        pdfDocGenerator.getBlob(async (blob) => {
+            if (!document.getElementById('in-app-pdf-viewer')) return;
+            const statusEl = document.getElementById('pdf-status-text');
+            if (statusEl) {
+                statusEl.innerText = "Share PDF or Download";
+                statusEl.style.color = '#64748b';
+            }
+            const file = new File([blob], safeFilename, { type: 'application/pdf' });
+            const btnDown = document.getElementById('preview-action-download');
+            const btnShare = document.getElementById('preview-action-share');
+            const btnPrint = document.getElementById('preview-action-print');
+            if (btnDown) {
+                btnDown.style.display = 'inline-block';
+                btnDown.onclick = () => {
+                    pdfDocGenerator.download(safeFilename);
+                    if (window.Utils) window.Utils.showToast("✅ Download Started!");
+                };
+            }
+            if (btnShare) {
+                btnShare.style.display = 'inline-block';
+                btnShare.onclick = async () => {
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        try { await navigator.share({ title: safeFilename, text: "Balance Sheet Statement", files: [file] }); } catch (err) {}
+                    } else {
+                        if (window.Utils) window.Utils.showToast("⚠️ Native Share unavailable. Downloading instead...");
+                        pdfDocGenerator.download(safeFilename);
+                    }
+                };
+            }
+            if (btnPrint) {
+                btnPrint.style.display = 'inline-block';
+                btnPrint.onclick = () => pdfDocGenerator.print();
+            }
+            try {
+                if (typeof window.pdfjsLib === 'undefined') {
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js";
+                        script.onload = () => {
+                            window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+                            resolve();
+                        };
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                }
+                const arrayBuffer = await blob.arrayBuffer();
+                const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                window.currentActivePDF = pdf;
+                const previewContent = document.getElementById('pdf-preview-content');
+                if (!previewContent) return;
+                previewContent.innerHTML = '';
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                    if (!document.getElementById('in-app-pdf-viewer')) break;
+                    const page = await pdf.getPage(pageNum);
+                    const viewport = page.getViewport({ scale: 3.2 });
+                    const canvas = document.createElement('canvas');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    canvas.style.cssText = 'max-width:100%; height:auto; box-shadow:0 4px 12px rgba(0,0,0,0.2); border-radius:4px; margin-bottom:16px;';
+                    previewContent.appendChild(canvas);
+                    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+                }
+            } catch (err) {
+                console.error("Balance Sheet PDF Preview Error:", err);
+            }
+        });
 
     } catch (error) {
         console.error(error);
@@ -12763,7 +12810,16 @@ window.app.showBSBreakdown = function(type, title, color) {
     listEl.innerHTML = html;
     totalEl.innerText = '₹' + total.toLocaleString('en-IN', {minimumFractionDigits: 2});
     totalEl.style.color = color;
-
+    const bsSearch = document.getElementById('bs-breakdown-search');
+    if (bsSearch) bsSearch.value = '';
+    window._filterBsBreakdown = (q) => {
+        const t = String(q || '').trim().toLowerCase();
+        Array.from(listEl.children).forEach(row => {
+            const txt = (row.textContent || '').toLowerCase();
+            const hit = !t || (window.fuzzyMatch ? window.fuzzyMatch(t, txt) : txt.includes(t));
+            row.style.display = hit ? 'flex' : 'none';
+        });
+    };
     if(window.UI) window.UI.openBottomSheet('sheet-bs-breakdown');
 };
 // 🚀 FINTECH UX: HOME SCREEN APP BADGING

@@ -577,8 +577,10 @@ const UI = {
     hideSplash: () => {
         const splash = document.getElementById('splash-screen');
         if(splash) {
+            splash.style.opacity = '0';
+            splash.style.pointerEvents = 'none';
             splash.classList.add('fade-out');
-            setTimeout(() => splash.classList.add('hidden'), 500); 
+            setTimeout(() => splash.classList.add('hidden'), 500);
         }
         
         // ENTERPRISE FIX: Removed the redundant PWA Shortcut parser from here. 
@@ -3546,8 +3548,10 @@ const UI = {
             const isDarkNow = document.body.classList.contains('dark-mode');
             if (UI.chartInstance && UI.chartInstance.canvas === canvas && UI._chartDarkMode === isDarkNow) {
                 UI.chartInstance.data.datasets[0].data = [salesAmt, purchaseAmt, expenseAmt];
+                canvas.style.width = '100%';
+                canvas.style.height = '100%';
+                UI.chartInstance.resize();
                 UI.chartInstance.update('none');
-                UI.chartInstance.resize(cWidth, cHeight);
                 return;
             }
             const ctx = canvas.getContext('2d');
@@ -3655,14 +3659,16 @@ const UI = {
         if (!canvas || !container) return;
         const w = container.clientWidth;
         const h = container.clientHeight;
-        if (w < 50 || h < 50) return;
+        if (w < 100 || h < 100) return;
         if (UI._pendingChartData) {
             const [s, p, e] = UI._pendingChartData;
             UI.updateChart(s, p, e);
             return;
         }
         if (UI.chartInstance) {
-            UI.chartInstance.resize(w, h);
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            UI.chartInstance.resize();
         }
     },
     // ==========================================
@@ -4637,10 +4643,15 @@ const UI = {
         });
 
         document.getElementById(`view-${tab}`).classList.remove('hidden');
-
+        const advSearch = document.getElementById('adv-report-search');
+        if (advSearch) {
+            advSearch.value = '';
+            advSearch.placeholder = tab === 'daybook' ? 'Search Day Book...' : (tab === 'pnl' ? 'Search Profit & Loss...' : 'Search Balance Sheet...');
+        }
         if (tab === 'daybook') UI.renderDayBook();
         else if (tab === 'pnl') UI.renderPnL();
         else if (tab === 'bs') UI.renderBalanceSheet();
+        if (window.updateAdvPeriodBadge) window.updateAdvPeriodBadge();
     },
 
     exportActiveAdvReport: () => {
@@ -5729,6 +5740,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         break;
                     case 'update':
                         if (window.Utils) window.Utils.showToast('Checking for updates... 🔄');
+                        localStorage.removeItem('sollo_last_tab');
+                        localStorage.setItem('sollo_just_updated', '1');
                         if ('serviceWorker' in navigator) {
                             navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => {
                                 if (r.waiting) r.waiting.postMessage({type: 'SKIP_WAITING'});
@@ -6302,7 +6315,7 @@ document.addEventListener('click', (e) => {
             action.includes('executeExpenseLedgerPDF') || action.includes('executeItemLedgerReport') || action.includes('exportUniversalReportPDF') ||
             action.includes('openCustomerProfitDetail') || action.includes('openSupplierPayableDetail') || action.includes('openCollectionDetail') ||
             action.includes('openMonthlyPnlDetail') || action.includes('openMonthlyPnlSubDetail') || action.includes('exportCpdDetailPDF') ||
-            action.includes('exportPnlSubDetailPDF') || action.includes('openUniversalFilterSheet') || action.includes('openDedReportFilter') ||
+            action.includes('exportPnlSubDetailPDF') || action.includes('openBalanceSheetPreview') || action.includes('openAdvReportFilter') || action.includes('openUniversalFilterSheet') || action.includes('openDedReportFilter') ||
             action.includes('processPDFExport')) {
             shouldPush = true;
         }
@@ -6368,6 +6381,92 @@ document.addEventListener('click', (e) => {
         }
     }, true);
 })();
+
+window.updateAdvPeriodBadge = () => {
+    const badge = document.getElementById('adv-report-period-badge');
+    if (!badge) return;
+    const tab = window.currentAdvReportTab || 'daybook';
+    const fmtD = (d) => (window.Utils && window.Utils.formatDateDisplay && d) ? window.Utils.formatDateDisplay(d) : (d || '');
+    const today = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+    if (tab === 'daybook') {
+        const d = document.getElementById('report-daybook-date')?.value || today;
+        badge.textContent = d === today ? 'Today' : fmtD(d);
+    } else {
+        const s = document.getElementById(tab === 'pnl' ? 'report-pnl-start' : 'report-bs-start')?.value || '';
+        const e = document.getElementById(tab === 'pnl' ? 'report-pnl-end' : 'report-bs-end')?.value || '';
+        badge.textContent = (s === '2000-01-01') ? 'All Time' : (s && e ? `${fmtD(s)} – ${fmtD(e)}` : 'Select Period');
+    }
+};
+window.openAdvReportFilter = () => {
+    const tab = window.currentAdvReportTab || 'daybook';
+    const dbWrap = document.getElementById('adv-filter-daybook-wrap');
+    const rgWrap = document.getElementById('adv-filter-range-wrap');
+    const pnlDates = document.getElementById('adv-filter-pnl-dates');
+    const bsDates = document.getElementById('adv-filter-bs-dates');
+    const titleEl = document.getElementById('adv-filter-title');
+    if (titleEl) titleEl.textContent = tab === 'daybook' ? 'Filter Day Book' : (tab === 'pnl' ? 'Filter Profit & Loss' : 'Filter Balance Sheet');
+    if (dbWrap) dbWrap.classList.toggle('hidden', tab !== 'daybook');
+    if (rgWrap) rgWrap.classList.toggle('hidden', tab === 'daybook');
+    if (pnlDates) pnlDates.style.display = tab === 'pnl' ? 'flex' : 'none';
+    if (bsDates) {
+        bsDates.classList.toggle('hidden', tab !== 'bs');
+        bsDates.style.display = tab === 'bs' ? 'flex' : 'none';
+    }
+    if (window.UI) window.UI.openBottomSheet('sheet-adv-report-filter');
+};
+window.setAdvQuickDate = (preset) => {
+    const tab = window.currentAdvReportTab || 'daybook';
+    const d = new Date();
+    const y = d.getFullYear(), m = d.getMonth();
+    const iso = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    const today = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : iso(d);
+    if (tab === 'daybook') {
+        const el = document.getElementById('report-daybook-date');
+        if (el) el.value = preset === 'yesterday' ? iso(new Date(y, m, d.getDate() - 1)) : today;
+    } else {
+        let from = today, to = today;
+        if (preset === 'month') from = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+        else if (preset === 'last_month') {
+            const lm = new Date(y, m - 1, 1);
+            const le = new Date(y, m, 0);
+            from = iso(lm); to = iso(le);
+        } else if (preset === 'fy') {
+            const fyY = m < 3 ? y - 1 : y;
+            from = `${fyY}-04-01`; to = today;
+        } else if (preset === 'all') {
+            from = '2000-01-01'; to = today;
+        }
+        const sEl = document.getElementById(tab === 'pnl' ? 'report-pnl-start' : 'report-bs-start');
+        const eEl = document.getElementById(tab === 'pnl' ? 'report-pnl-end' : 'report-bs-end');
+        if (sEl) sEl.value = from;
+        if (eEl) eEl.value = to;
+    }
+    window.applyAdvReportFilter(true);
+};
+window.applyAdvReportFilter = (closeSheet = true) => {
+    const tab = window.currentAdvReportTab || 'daybook';
+    if (tab === 'daybook' && window.UI && window.UI.renderDayBook) window.UI.renderDayBook();
+    else if (tab === 'pnl' && window.UI && window.UI.renderPnL) window.UI.renderPnL();
+    else if (tab === 'bs' && window.UI && window.UI.renderBalanceSheet) window.UI.renderBalanceSheet();
+    window.updateAdvPeriodBadge();
+    const q = document.getElementById('adv-report-search')?.value || '';
+    if (q) window.filterAdvReportView(q);
+    if (closeSheet && window.UI) window.UI.closeBottomSheet('sheet-adv-report-filter');
+};
+window.filterAdvReportView = (q) => {
+    const t = String(q || '').trim().toLowerCase();
+    const tab = window.currentAdvReportTab || 'daybook';
+    const hostId = tab === 'daybook' ? 'daybook-container' : (tab === 'pnl' ? 'pnl-container' : 'bs-container');
+    const host = document.getElementById(hostId);
+    if (!host) return;
+    const rows = host.querySelectorAll('.m3-card, tr, [onclick*="showBSBreakdown"]');
+    rows.forEach(el => {
+        if (el.querySelector && el.querySelector('.m3-card, [onclick*="showBSBreakdown"]')) return;
+        const txt = (el.textContent || '').toLowerCase();
+        const hit = !t || (window.fuzzyMatch ? window.fuzzyMatch(t, txt) : txt.includes(t));
+        el.style.display = hit ? '' : 'none';
+    });
+};
 // 2. INTERCEPT HARDWARE BACK BUTTON
 if (window.navigation) {
     window.navigation.addEventListener('navigate', (event) => {
@@ -6575,38 +6674,33 @@ document.addEventListener('visibilitychange', () => {
         // ⏱️ TRACK TIME: Record exactly when the user left the app
         window.solloAppHiddenTime = Date.now();
 
-        // INSTANT LOCK: Display the screen with the blur so it hides data in the OS multi-tasking view!
-        if (lockScreen) {
-            lockScreen.style.transition = 'none'; 
+        if (lockScreen && localStorage.getItem('sollo_app_pin')) {
+            lockScreen.style.transition = 'none';
             lockScreen.style.opacity = '1';
             lockScreen.style.display = 'flex';
         }
-    } 
+    }
     else if (document.visibilityState === 'visible') {
-        // WAKE UP: Refresh the dashboard in the background
         if (window.UI) {
-            window.UI.resetStatusBarColor();
-            const isDashboardActive = document.getElementById('tab-dashboard')?.classList.contains('active-screen');
-            if (isDashboardActive) {
-                setTimeout(() => {
-                    window.UI.renderDashboard();
-                }, 150);
-                setTimeout(() => {
-                    if (window.UI.safeResizeChart) window.UI.safeResizeChart();
-                }, 450);
+            const hasOverlayOpen = document.querySelector('.activity-screen.open, .bottom-sheet.open, #sheet-party-due-aging');
+            if (!hasOverlayOpen) {
+                window.UI.resetStatusBarColor();
+                const isDashboardActive = document.getElementById('tab-dashboard')?.classList.contains('active-screen');
+                if (isDashboardActive) {
+                    setTimeout(() => { window.UI.renderDashboard(); }, 150);
+                    setTimeout(() => { if (window.UI.safeResizeChart) window.UI.safeResizeChart(); }, 450);
+                }
             }
         }
-        
-        if (lockScreen) {
-            lockScreen.style.transition = 'opacity 0.3s ease';
-            
-            // 🚀 ENTERPRISE UX: THE 60-SECOND GRACE PERIOD
-            // If the user was gone for less than 60 seconds, automatically unlock the app!
+        if (lockScreen && lockScreen.style.display !== 'none') {
+            const hasPin = Boolean(localStorage.getItem('sollo_app_pin'));
             const timeAway = Date.now() - (window.solloAppHiddenTime || 0);
-            
-            if (timeAway < 60000 && !localStorage.getItem('sollo_app_pin')) { // Only auto-unlock if no PIN is set
+            if (!hasPin || timeAway < 60000) {
+                lockScreen.style.transition = 'opacity 0.25s ease';
                 lockScreen.style.opacity = '0';
-                setTimeout(() => lockScreen.style.display = 'none', 300);
+                setTimeout(() => {
+                    if (document.visibilityState === 'visible') lockScreen.style.display = 'none';
+                }, 260);
             }
         }
     }
@@ -7678,6 +7772,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 splashScreen.style.opacity = '0';
                 
                 setTimeout(() => {
+                    if (splashScreen.classList.contains('fade-out') || splashScreen.classList.contains('hidden')) return;
                     splashScreen.innerHTML = `
                         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: var(--md-background, #f8fafc);">
                             ${biz.logo 
