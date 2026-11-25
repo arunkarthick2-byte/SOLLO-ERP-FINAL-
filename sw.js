@@ -1,7 +1,7 @@
 // ==========================================
 // SOLLO ERP - SMART OFFLINE ENGINE (v6.5 Auto-Fresh)
 // ==========================================
-const CACHE_NAME = 'sollo-erp-v7-2';
+const CACHE_NAME = 'sollo-erp-v7-3';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
