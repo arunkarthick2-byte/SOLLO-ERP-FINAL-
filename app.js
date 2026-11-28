@@ -11717,34 +11717,35 @@ if (data.id && splitConfirmed) {
             const oldOverlay = document.getElementById('bank-ledger-overlay');
             if (oldOverlay) oldOverlay.remove();
 
+            const _bz = window._getTopZ ? window._getTopZ() : 5200;
             let sheetHTML = `
-            <div id="sheet-bank-ledger-select" class="bottom-sheet open" style="z-index: 9999; max-height: 80vh;">
-                <div class="sheet-header" style="background: var(--md-surface); position: sticky; top: 0; z-index: 10;">
+            <div id="sheet-bank-ledger-select" class="bottom-sheet open" data-no-swipe="true" style="top:16px; bottom:16px; left:16px; right:16px; width:auto; height:calc(100% - 32px); max-height:none; border-radius:12px; display:flex; flex-direction:column; padding:0; z-index:${_bz}; box-shadow:0 12px 40px rgba(0,0,0,0.3); border:1px solid var(--md-outline-variant); background:var(--md-surface); overflow:hidden;">
+                <div style="background:var(--md-surface); padding:14px 16px; border-bottom:1px solid var(--md-outline-variant); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
                     <div>
-                        <span style="font-size: 18px; font-weight: 600; display: block;">Bank & Cash Ledgers</span>
-                        <small style="color: var(--md-text-muted);">Select an account to view passbook</small>
+                        <strong style="font-size:16px; font-weight:700; color:var(--md-on-surface); display:block;">Bank &amp; Cash Ledgers</strong>
+                        <small style="color:var(--md-text-muted); font-size:12px;">Select an account to view passbook</small>
                     </div>
-                    <span class="material-symbols-outlined tap-target" onclick="this.closest('.bottom-sheet').remove(); document.getElementById('bank-ledger-overlay').remove();" style="background: var(--md-surface-variant); padding: 8px; border-radius: 50%;">close</span>
+                    <span class="material-symbols-outlined tap-target" onclick="this.closest('.bottom-sheet').remove(); document.getElementById('bank-ledger-overlay')?.remove();" style="color:var(--md-outline, #94a3b8); font-size:24px; cursor:pointer;">close</span>
                 </div>
-                <div style="padding: 16px; overflow-y: auto;">
+                <div style="flex:1 1 auto; overflow-y:auto; padding:0; background:var(--md-surface);">
                     ${displayAccounts.map(a => `
-                        <div class="m3-card tap-target" style="padding: 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--md-outline-variant);" 
-                             onclick="if(window.app) window.app.openAccountLedger('${a.id}'); this.closest('.bottom-sheet').remove(); document.getElementById('bank-ledger-overlay').remove();">
-                            <div style="display: flex; align-items: center; gap: 12px;">
-                                <div class="icon-circle" style="width: 40px; height: 40px; background: rgba(0, 97, 164, 0.1); color: var(--md-primary); box-shadow: none;">
-                                    <span class="material-symbols-outlined" style="font-size: 20px;">${a.id === 'cash' ? 'payments' : 'account_balance'}</span>
+                        <div class="tap-target" style="padding:14px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--md-outline-variant); cursor:pointer;"
+                             onclick="if(window.app) window.app.openAccountLedger('${a.id}'); this.closest('.bottom-sheet').remove(); document.getElementById('bank-ledger-overlay')?.remove();">
+                            <div style="display:flex; align-items:center; gap:12px; min-width:0; flex:1;">
+                                <div class="icon-circle" style="width:38px; height:38px; background:rgba(0, 97, 164, 0.1); color:var(--md-primary); box-shadow:none; flex-shrink:0;">
+                                    <span class="material-symbols-outlined" style="font-size:20px;">${a.id === 'cash' ? 'payments' : 'account_balance'}</span>
                                 </div>
-                                <div>
-                                    <strong style="font-size: 15px;">${a.name}</strong><br>
-                                    <small style="color:var(--md-text-muted)">${a.type || 'Bank'}</small>
+                                <div style="min-width:0; flex:1;">
+                                    <strong style="font-size:15px; color:var(--md-on-surface); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${a.name}</strong>
+                                    <small style="color:var(--md-text-muted); font-size:12px;">${a.type || 'Bank'}</small>
                                 </div>
                             </div>
-                            <span class="material-symbols-outlined" style="color: var(--md-text-muted);">chevron_right</span>
+                            <span class="material-symbols-outlined" style="color:var(--md-text-muted); flex-shrink:0;">chevron_right</span>
                         </div>
                     `).join('')}
                 </div>
             </div>
-            <div id="bank-ledger-overlay" class="sheet-overlay open" style="z-index: 9998;" onclick="document.getElementById('sheet-bank-ledger-select').remove(); this.remove();"></div>
+            <div id="bank-ledger-overlay" class="sheet-overlay open" style="z-index:${_bz - 5};" onclick="document.getElementById('sheet-bank-ledger-select')?.remove(); this.remove();"></div>
             `;
             document.body.insertAdjacentHTML('beforeend', sheetHTML);
         } catch (error) {
@@ -11774,32 +11775,38 @@ window.triggerKhataReport = async () => {
     const oldOverlay = document.getElementById('khata-overlay');
     if (oldOverlay) oldOverlay.remove();
 
-    // 2. Build a beautiful native Bottom Sheet dynamically
+    const _kz = window._getTopZ ? window._getTopZ() : 5200;
     let sheetHTML = `
-    <div id="sheet-khata-select" class="bottom-sheet open" style="z-index: 9999; max-height: 80vh;">
-        <div class="sheet-header" style="background: var(--md-surface); position: sticky; top: 0; z-index: 10;">
-            <div>
-                <span style="font-size: 18px; font-weight: 600; display: block;">Khata Statement</span>
-                <small style="color: var(--md-text-muted);">Select a party to generate report</small>
+    <div id="sheet-khata-select" class="bottom-sheet open" data-no-swipe="true" style="top:16px; bottom:16px; left:16px; right:16px; width:auto; height:calc(100% - 32px); max-height:none; border-radius:12px; display:flex; flex-direction:column; padding:0; z-index:${_kz}; box-shadow:0 12px 40px rgba(0,0,0,0.3); border:1px solid var(--md-outline-variant); background:var(--md-surface); overflow:hidden;">
+        <div style="background:var(--md-surface); padding:14px 16px 0 16px; border-bottom:1px solid var(--md-outline-variant); flex-shrink:0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <div>
+                    <strong style="font-size:16px; font-weight:700; color:var(--md-on-surface); display:block;">Khata Statement</strong>
+                    <small style="color:var(--md-text-muted); font-size:12px;">Select a party to generate report</small>
+                </div>
+                <span class="material-symbols-outlined tap-target" onclick="this.closest('.bottom-sheet').remove(); document.getElementById('khata-overlay')?.remove();" style="color:var(--md-outline, #94a3b8); font-size:24px; cursor:pointer;">close</span>
             </div>
-            <span class="material-symbols-outlined tap-target" onclick="this.closest('.bottom-sheet').remove(); document.getElementById('khata-overlay').remove();" style="background: var(--md-surface-variant); padding: 8px; border-radius: 50%;">close</span>
+            <div class="search-container" style="position:relative; margin-bottom:10px;">
+                <span class="material-symbols-outlined" style="position:absolute; left:12px; top:12px; color:var(--md-outline);">search</span>
+                <input type="text" id="khata-party-search" placeholder="Search customer or supplier..." autocomplete="off" oninput="const t=this.value.trim().toLowerCase(); document.querySelectorAll('#khata-party-list > div').forEach(r=>{ const hit=!t||(window.fuzzyMatch?window.fuzzyMatch(t,r.textContent):r.textContent.toLowerCase().includes(t)); r.style.display=hit?'flex':'none'; });" style="width:100%; padding:12px; border:none; font-size:15px; background:transparent; outline:none;">
+            </div>
         </div>
-        <div style="padding: 16px; overflow-y: auto;">
+        <div id="khata-party-list" style="flex:1 1 auto; overflow-y:auto; padding:0; background:var(--md-surface);">
             ${parties.map(p => `
-                <div class="m3-card tap-target" style="padding: 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--md-outline-variant);" 
-                     onclick="window.executeKhataReport('${p.id}', '${(p.name || 'Unknown').replace(/'/g, "\\'")}', '${p.type}'); this.closest('.bottom-sheet').remove(); document.getElementById('khata-overlay').remove();">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div class="icon-circle" style="width: 40px; height: 40px; background: ${String(p.type).toLowerCase() === 'customer' ? 'rgba(0, 97, 164, 0.1)' : 'rgba(186, 26, 26, 0.1)'}; color: ${String(p.type).toLowerCase() === 'customer' ? '#42a5f5' : 'var(--md-error)'}; box-shadow: none;">
-                            <span class="material-symbols-outlined" style="font-size: 20px;">${String(p.type).toLowerCase() === 'customer' ? 'person' : 'storefront'}</span>
+                <div class="tap-target" style="padding:14px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--md-outline-variant); cursor:pointer;"
+                     onclick="window.executeKhataReport('${p.id}', '${(p.name || 'Unknown').replace(/'/g, "\\'")}', '${p.type}'); this.closest('.bottom-sheet').remove(); document.getElementById('khata-overlay')?.remove();">
+                    <div style="display:flex; align-items:center; gap:12px; min-width:0; flex:1;">
+                        <div class="icon-circle" style="width:38px; height:38px; background:${String(p.type).toLowerCase() === 'customer' ? 'rgba(0, 97, 164, 0.1)' : 'rgba(186, 26, 26, 0.1)'}; color:${String(p.type).toLowerCase() === 'customer' ? '#42a5f5' : 'var(--md-error)'}; box-shadow:none; flex-shrink:0;">
+                            <span class="material-symbols-outlined" style="font-size:20px;">${String(p.type).toLowerCase() === 'customer' ? 'person' : 'storefront'}</span>
                         </div>
-                        <strong style="font-size: 15px;">${p.name || 'Unknown'}</strong>
+                        <strong style="font-size:15px; color:var(--md-on-surface); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name || 'Unknown'}</strong>
                     </div>
-                    <span class="material-symbols-outlined" style="color: var(--md-text-muted);">print</span>
+                    <span class="material-symbols-outlined" style="color:var(--md-text-muted); flex-shrink:0;">print</span>
                 </div>
             `).join('')}
         </div>
     </div>
-    <div id="khata-overlay" class="sheet-overlay open" style="z-index: 9998;" onclick="document.getElementById('sheet-khata-select').remove(); this.remove();"></div>
+    <div id="khata-overlay" class="sheet-overlay open" style="z-index:${_kz - 5};" onclick="document.getElementById('sheet-khata-select')?.remove(); this.remove();"></div>
     `;
     document.body.insertAdjacentHTML('beforeend', sheetHTML);
 };

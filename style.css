@@ -5887,8 +5887,6 @@ body.dark-mode #app-shell div.screen-section .search-bar {
 }
 #dashboard-chart {
     display: block;
-    width: 100% !important;
-    height: 100% !important;
     max-width: 100%;
 }
 .dash-fulfillment-header {
@@ -12334,4 +12332,60 @@ html body.dark-mode #sollo-back-to-top:not(#_) {
     background: #1c1c1e !important;
     border-color: rgba(255, 255, 255, 0.14) !important;
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.55) !important;
+}
+@keyframes solloRowReveal {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes solloSheetPop {
+    from { opacity: 0; transform: translateY(18px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+html body #sheet-pnl-subdetail.open:not(#_),
+html body #sheet-bs-breakdown.open:not(#_),
+html body #sheet-adv-report-filter.open:not(#_),
+html body #sheet-uni-report-filter.open:not(#_),
+html body #sheet-ded-report-filter.open:not(#_),
+html body #sheet-party-due-aging:not(#_) {
+    animation: solloSheetPop 0.24s cubic-bezier(0.22, 1, 0.36, 1) both !important;
+}
+html body #cpd-list-wrap .cpd-row:nth-child(-n+10),
+html body #pnl-sub-list > li:nth-child(-n+10),
+html body #bs-breakdown-list > div:nth-child(-n+10) {
+    animation: solloRowReveal 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+html body #cpd-list-wrap .cpd-row:nth-child(2), html body #pnl-sub-list > li:nth-child(2), html body #bs-breakdown-list > div:nth-child(2) { animation-delay: 18ms; }
+html body #cpd-list-wrap .cpd-row:nth-child(3), html body #pnl-sub-list > li:nth-child(3), html body #bs-breakdown-list > div:nth-child(3) { animation-delay: 36ms; }
+html body #cpd-list-wrap .cpd-row:nth-child(4), html body #pnl-sub-list > li:nth-child(4), html body #bs-breakdown-list > div:nth-child(4) { animation-delay: 54ms; }
+html body #cpd-list-wrap .cpd-row:nth-child(5), html body #pnl-sub-list > li:nth-child(5), html body #bs-breakdown-list > div:nth-child(5) { animation-delay: 72ms; }
+html body #cpd-list-wrap .cpd-row:nth-child(6), html body #pnl-sub-list > li:nth-child(6), html body #bs-breakdown-list > div:nth-child(6) { animation-delay: 90ms; }
+html body #cpd-list-wrap .cpd-row:nth-child(7), html body #pnl-sub-list > li:nth-child(7), html body #bs-breakdown-list > div:nth-child(7) { animation-delay: 108ms; }
+html body #cpd-list-wrap .cpd-row:nth-child(8), html body #pnl-sub-list > li:nth-child(8), html body #bs-breakdown-list > div:nth-child(8) { animation-delay: 126ms; }
+html body #cpd-list-wrap .cpd-row:nth-child(9), html body #pnl-sub-list > li:nth-child(9), html body #bs-breakdown-list > div:nth-child(9) { animation-delay: 144ms; }
+html body #cpd-list-wrap .cpd-row:nth-child(10), html body #pnl-sub-list > li:nth-child(10), html body #bs-breakdown-list > div:nth-child(10) { animation-delay: 162ms; }
+html body .cpd-tab-btn:active:not(#_),
+html body .erp-segment-btn:active:not(#_),
+html body #btn-tab-daybook:active:not(#_),
+html body #btn-tab-pnl:active:not(#_),
+html body #btn-tab-bs:active:not(#_),
+html body #cpd-pdf-btn:active:not(#_),
+html body #pnl-sub-pdf-btn:active:not(#_),
+html body #btn-export-adv-report:active:not(#_),
+html body .ded-tune-btn:active:not(#_),
+html body .uni-tune-btn:active:not(#_) {
+    transform: scale(0.95) !important;
+    transition: transform 0.09s ease !important;
+}
+@media (prefers-reduced-motion: reduce) {
+    html body #sheet-pnl-subdetail.open:not(#_),
+    html body #sheet-bs-breakdown.open:not(#_),
+    html body #sheet-adv-report-filter.open:not(#_),
+    html body #sheet-uni-report-filter.open:not(#_),
+    html body #sheet-ded-report-filter.open:not(#_),
+    html body #sheet-party-due-aging:not(#_),
+    html body #cpd-list-wrap .cpd-row,
+    html body #pnl-sub-list > li,
+    html body #bs-breakdown-list > div {
+        animation: none !important;
+    }
 }

@@ -3279,11 +3279,11 @@ const UI = {
         // UPGRADE 1: Enterprise Live Count-Up Animation Engine
         const salesEl = document.getElementById('dash-total-sales');
         const curSalesVal = salesEl ? (parseFloat(salesEl.innerText.replace(/[^\d.-]/g, '')) || 0) : 0;
-        window.animateCurrency('dash-total-sales', curSalesVal, totalSales, 1000);
+        window.animateCurrency('dash-total-sales', curSalesVal, totalSales, 380);
         const netProfitEl = document.getElementById('dash-net-profit');
         if(netProfitEl) {
             const curProfitVal = parseFloat(netProfitEl.innerText.replace(/[^\d.-]/g, '')) || 0;
-            window.animateCurrency('dash-net-profit', curProfitVal, trueNetProfit, 1200); // Slightly longer duration so it finishes after sales
+            window.animateCurrency('dash-net-profit', curProfitVal, trueNetProfit, 450);
             netProfitEl.style.color = trueNetProfit >= 0 ? 'var(--md-success)' : 'var(--md-error)';
         }
         
@@ -3540,30 +3540,22 @@ const UI = {
             const container = canvas.parentElement;
             const cWidth = container ? container.clientWidth : 0;
             const cHeight = container ? container.clientHeight : 0;
-            if (cWidth < 50 || cHeight < 50) {
+            UI._lastChartData = [salesAmt, purchaseAmt, expenseAmt];
+            if (cWidth < 100 || cHeight < 100) {
                 UI._pendingChartData = [salesAmt, purchaseAmt, expenseAmt];
                 return;
             }
             UI._pendingChartData = null;
             const isDarkNow = document.body.classList.contains('dark-mode');
-            if (UI.chartInstance && UI.chartInstance.canvas === canvas && UI._chartDarkMode === isDarkNow) {
-                UI.chartInstance.data.datasets[0].data = [salesAmt, purchaseAmt, expenseAmt];
-                canvas.style.width = '100%';
-                canvas.style.height = '100%';
-                UI.chartInstance.resize();
-                UI.chartInstance.update('none');
-                return;
-            }
-            const ctx = canvas.getContext('2d');
             if (UI.chartInstance) {
-                UI.chartInstance.destroy();
+                try { UI.chartInstance.destroy(); } catch (e) {}
                 UI.chartInstance = null;
             }
+            const freshCanvas = document.createElement('canvas');
+            freshCanvas.id = 'dashboard-chart';
+            canvas.replaceWith(freshCanvas);
+            const ctx = freshCanvas.getContext('2d');
             UI._chartDarkMode = isDarkNow;
-            canvas.removeAttribute('width');
-            canvas.removeAttribute('height');
-            canvas.style.width = '';
-            canvas.style.height = '';
 
             // 🚨 ENTERPRISE UPGRADE: Detect active theme for the Chart!
             const isDark = document.body.classList.contains('dark-mode');
@@ -3643,12 +3635,6 @@ const UI = {
                     }
                 }
             });
-            requestAnimationFrame(() => {
-                if (UI.safeResizeChart) UI.safeResizeChart();
-            });
-            setTimeout(() => {
-                if (UI.safeResizeChart) UI.safeResizeChart();
-            }, 250);
         } catch (error) {
             console.error("Chart Rendering Error:", error);
         }
@@ -3665,10 +3651,10 @@ const UI = {
             UI.updateChart(s, p, e);
             return;
         }
-        if (UI.chartInstance) {
-            canvas.style.width = '100%';
-            canvas.style.height = '100%';
-            UI.chartInstance.resize();
+        const rect = canvas.getBoundingClientRect();
+        if (UI._lastChartData && (!UI.chartInstance || Math.abs(rect.width - w) > 10 || Math.abs(rect.height - h) > 10)) {
+            const [s, p, e] = UI._lastChartData;
+            UI.updateChart(s, p, e);
         }
     },
     // ==========================================
@@ -4176,7 +4162,19 @@ const UI = {
             }
         }
         
-        // 🚨 CRITICAL FIX: Instantly recalculate taxes in case the new party triggers IGST!
+        if (prefix === 'sales' || prefix === 'purchase') {
+            document.querySelectorAll(`#${prefix}-items-body .item-entry-card`).forEach(card => {
+                const idEl = card.querySelector('.row-item-id');
+                const rateEl = card.querySelector('.row-rate');
+                if (!idEl || !rateEl) return;
+                card.querySelector('.smart-rate-hint')?.remove();
+                const smart = UI.getSmartRate(prefix, idEl.value, parseFloat(rateEl.value) || 0);
+                if (smart && smart.msg) {
+                    const strip = card.querySelector('.item-extra-strip') || card.querySelector('div > div:first-child');
+                    if (strip) strip.insertAdjacentHTML('beforeend', smart.msg);
+                }
+            });
+        }
         if (prefix === 'sales') UI.calcSalesTotals();
         if (prefix === 'purchase') UI.calcPurchaseTotals();
         
@@ -4193,32 +4191,37 @@ const UI = {
         if (!partyId) return { price: defaultPrice, msg: '' };
 
         const historyData = isSales ? UI.state.rawData.sales : UI.state.rawData.purchases;
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
+        const currentEditId = (window.app && window.app.state) ? window.app.state.currentEditId : null;
+        const itemObj = (UI.state.rawData.items || []).find(i => String(i.id) === String(itemId));
+        const targetName = itemObj ? String(itemObj.name || '').trim().toLowerCase() : '';
         let lastRate = null;
         let lastDate = 0;
-
-        // Scan history to find the most recent price charged to THIS specific party
-        historyData.forEach(doc => {
-            if (doc.status !== 'Open' && doc.status !== 'Cancelled' && doc.documentType !== 'return' && (isSales ? doc.customerId === partyId : doc.supplierId === partyId)) {
+        (historyData || []).forEach(doc => {
+            if (currentEditId && String(doc.id) === String(currentEditId)) return;
+            if (activeFirmId && doc.firmId && String(doc.firmId) !== String(activeFirmId)) return;
+            const docParty = isSales ? doc.customerId : doc.supplierId;
+            if (doc.status !== 'Open' && doc.status !== 'Cancelled' && doc.documentType !== 'return' && String(docParty) === String(partyId)) {
                 const docTime = new Date(doc.date || 0).getTime();
                 (doc.items || []).forEach(row => {
-                    const rId = row.itemId || row.id; 
-                    if (rId === itemId && docTime >= lastDate) {
+                    const rId = row.itemId || row.id;
+                    const rName = String(row.name || '').trim().toLowerCase();
+                    const isMatch = String(rId) === String(itemId) || (targetName && rName === targetName);
+                    if (isMatch && docTime >= lastDate && !isNaN(parseFloat(row.rate))) {
                         lastRate = parseFloat(row.rate);
                         lastDate = docTime;
                     }
                 });
             }
         });
-
-        if (lastRate !== null && lastRate !== parseFloat(defaultPrice)) {
-            const itemObj = (UI.state.rawData.items || []).find(i => i.id === itemId);
+        if (lastRate !== null) {
             const itemName = itemObj ? String(itemObj.name || 'Item History').replace(/'/g, "\\'").replace(/"/g, "&quot;") : 'Item History';
             const dateObj = new Date(lastDate);
             const dateStr = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-
-            return { 
-                price: lastRate, 
-                msg: `<div style="margin-top: 6px;"><span class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${itemId}', '${itemName}');" style="color: var(--md-primary); font-weight: 700; font-size: 11px; background: transparent; padding: 2px 0; border-radius: 4px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><span class="material-symbols-outlined" style="font-size: 14px;">history</span> Last sold: ₹${lastRate} on ${dateStr}</span></div>` 
+            const rateLabel = isSales ? 'Last sold' : 'Last bought';
+            return {
+                price: lastRate,
+                msg: `<div class="smart-rate-hint" style="margin-top: 6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); const card=this.closest('.item-entry-card'); const rEl=card&&card.querySelector('.row-rate'); if(rEl){rEl.value='${lastRate}'; rEl.dispatchEvent(new Event('input',{bubbles:true}));}" style="color: var(--md-primary); font-weight: 700; font-size: 11px; background: rgba(0,97,164,0.1); padding: 3px 8px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><span class="material-symbols-outlined" style="font-size: 13px;">history</span> ${rateLabel}: ₹${lastRate} (${dateStr})</span><span class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${itemId}', '${itemName}');" style="color: var(--md-text-muted); font-size: 11px; font-weight: 600; cursor: pointer;">History</span></div>`
             };
         }
         return { price: defaultPrice, msg: '' };
@@ -4284,29 +4287,33 @@ const UI = {
                                 <input type="hidden" class="row-item-name" value="${String(item.name || '').replace(/"/g, '&quot;')}">
                                 <input type="hidden" class="row-uom" value="${item.uom || ''}">
                             </div>
-                            ${prefix === 'sales' ? `
-                            <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
-                                <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
-                                <input type="text" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals();" style="width:100px; padding:4px 6px; font-size:11px; border:none; border-bottom:1px solid var(--md-outline-variant); background:transparent; border-radius:0;">
-                                <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
-                            </div>
-                            ` : `<input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">`}
-                            ${item.msgHtml}
-                            ${item.conversionHtml}
                         </div>
-                        <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch;">
-                            <div class="tap-target" onclick="const card = this.closest('.item-entry-card'); const index = Array.from(card.parentNode.children).indexOf(card); window['${prefix}ObservableItems'].splice(index, 1); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="color: var(--md-error); background: transparent; padding: 6px; border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch; flex-shrink: 0;">
+                            <div class="tap-target" onclick="const card = this.closest('.item-entry-card'); const index = Array.from(card.parentNode.children).indexOf(card); window['${prefix}ObservableItems'].splice(index, 1); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="color: var(--md-error); background: transparent; padding: 4px; border-radius: 6px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">
                                 <span class="material-symbols-outlined" style="font-size: 18px;">delete</span>
                             </div>
-                            <strong class="row-total" style="font-size: 16px; color: var(--md-on-surface); margin-top: auto; padding-top: 8px;">0.00</strong>
+                            <strong class="row-total" style="font-size: 16px; color: var(--md-on-surface); margin-top: auto; padding-top: 6px; font-variant-numeric: tabular-nums;">0.00</strong>
                         </div>
                     </div>
-                `;
+                    <div class="item-extra-strip" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--md-outline-variant); display: flex; flex-direction: column; gap: 4px;">
+                        ${prefix === 'sales' ? `
+                        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+                            <div style="display:flex; align-items:center; gap:4px;">
+                                <span style="font-size:11px; color:var(--md-text-muted); font-weight:600;">Buy: ₹</span>
+                                <input type="text" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals();" style="width:78px; padding:2px 4px; font-size:12px; font-weight:700; border:none; border-bottom:1px solid var(--md-outline-variant); background:transparent; border-radius:0; color:var(--md-on-surface);">
+                            </div>
+                            <span class="live-margin" style="font-size:11px; font-weight:700;"></span>
+                        </div>
+                        ` : `<input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">`}
+                        ${item.msgHtml}
+                        ${item.conversionHtml}
+                    </div>
+                </div>`;
             });
         }
         const smart = UI.getSmartRate(prefix, id, price);
         const finalRate = forceRate ? price : smart.price;
-        const msgHtml = (forceRate && price !== smart.price) ? '' : smart.msg;
+        const msgHtml = smart.msg || '';
         const dbItem = (window.UI.state.rawData.items || []).find(i => i.id === id);
         const altUom = dbItem && dbItem.altUom ? dbItem.altUom : '';
         const conv = dbItem && dbItem.conversionFactor ? parseFloat(dbItem.conversionFactor) || 1 : 1;
